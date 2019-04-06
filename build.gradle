@@ -27,7 +27,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId = 'mfarsikov'
-            artifactId = 'runner-plugin'
+            artifactId = 'auxiliary-processes-plugin'
             version = '0.0.3'
 
             from components.java

@@ -1,4 +1,4 @@
-package com.runner.plugin
+package mfarsikov.auxiliary.plugin
 
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -14,7 +14,7 @@ import java.io.File
 import java.time.Instant
 import kotlin.RuntimeException
 
-class AuxiliaryProcessPlugin : Plugin<Project> {
+class AuxiliaryProcessesPlugin : Plugin<Project> {
     private val client = OkHttpClient()
     private var runningAuxProcesses: List<RunningAuxProcess>? = null
     private lateinit var logger: Logger
@@ -62,13 +62,12 @@ class AuxiliaryProcessPlugin : Plugin<Project> {
         if (runningAuxProcess.config.readinessProbeUrl == null) return
 
         do {
+            logger.info("${runningAuxProcess.config.name} Readiness check...")
+
             val request = Request.Builder()
                     .url(runningAuxProcess.config.readinessProbeUrl!!)
                     .build()
-
-            logger.info("${runningAuxProcess.config.name} Readiness check...")
-
-            val response = client.newCall(request).execute().also { it.close() }
+            val response = client.newCall(request).execute().also { it.close() } //TODO catch ex
 
             if (response.code() == 200) {
                 logger.info("Process ${runningAuxProcess.config.name} is ready")
