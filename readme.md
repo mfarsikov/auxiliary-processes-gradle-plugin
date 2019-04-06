@@ -1,4 +1,4 @@
-Deploy to maven local
+Deploy to maven local:
 
     ./gradlew publishToMavenLocal
     
@@ -10,7 +10,7 @@ buildscript {
         mavenLocal()
     }
     dependencies {
-        classpath "mfarsikov:auxiliary-processes-plugin:0.0.3"
+        classpath 'mfarsikov:auxiliary-processes-plugin:0.0.3'
     }
 }
 
@@ -20,16 +20,18 @@ plugins {
 
 apply plugin: 'mfarsikov.auxiliary-processes'
 ```
-Configuration
+
+Configuration:
+
 ```
 auxProcesses {
-    "long-runner-1" {
+    'long-runner-1' {
         command = 'java -jar build/libs/runner-app.jar'
-        readinessProbeUrl = "http://google.com"
+        readinessProbeUrl = 'http://google.com'
     }
-    "long-runner-2" {
+    'long-runner-2' {
         command = 'java -jar build/libs/runner-app.jar'
-        readinessProbeUrl = "http://google.com"
+        readinessProbeUrl = 'http://google.com'
         readinessTimeout = 1
     }
 }
@@ -37,7 +39,7 @@ auxProcesses {
 task('inegrationTest') {
     dependsOn('startAuxProcesses')
     doLast{
-        println("testing...")
+        println('testing...')
         Thread.sleep(3000)
     }
     finalizedBy('stopAuxProcesses')
