@@ -1,13 +1,18 @@
-Deploy to maven local:
+## Deploy 
 
-    ./gradlew publishToMavenLocal
+* to maven local: `./gradlew publishToMavenLocal`
     
-Usage:
+* to bintray: `./gradlew bintrayPublish`
+    
+## Usage
+### Setup
 
 ```
 buildscript {
     repositories {
-        mavenLocal()
+        maven {
+            url "https://dl.bintray.com/farsikov-max/gradle-auxiliary-processes-plugin"
+        }
     }
     dependencies {
         classpath 'mfarsikov:auxiliary-processes-plugin:0.0.3'
@@ -21,7 +26,7 @@ plugins {
 apply plugin: 'mfarsikov.auxiliary-processes'
 ```
 
-Configuration:
+###  Configuration
 
 ```
 auxProcesses {
