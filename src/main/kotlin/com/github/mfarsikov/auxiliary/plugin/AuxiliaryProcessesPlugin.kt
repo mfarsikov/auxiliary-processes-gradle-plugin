@@ -1,13 +1,10 @@
-package mfarsikov.auxiliary.plugin
+package com.github.mfarsikov.auxiliary.plugin
 
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.logging.Logger
 import java.io.File
@@ -15,10 +12,10 @@ import java.time.Instant
 import kotlin.RuntimeException
 
 class AuxiliaryProcessesPlugin : Plugin<Project> {
-    private val client = OkHttpClient()
+    //private val client = OkHttpClient()
     private var runningAuxProcesses: List<RunningAuxProcess>? = null
     private lateinit var logger: Logger
-    private val retryDelay = 1000.toLong()
+    //private val retryDelay = 1000.toLong()
     override fun apply(project: Project) {
 
         logger = project.logger
@@ -53,14 +50,17 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
     private fun AuxConfig.run(): RunningAuxProcess {
         logger.info("Starting ${name}")
 
-        File("logs").also { if (!it.exists()) it.mkdirs() }
+        File("build/logs").also { if (!it.exists()) it.mkdirs() }
 
-        val logFile = File("logs/${name}.log").also { if (!it.exists()) it.createNewFile() }
+        val logFile = File("build/logs/${name}.log").also { if (!it.exists()) it.createNewFile() }
+
+        logger.info("Aux rrocess $name log: ${logFile.absoluteFile}")
 
         val process = ProcessBuilder()
-                .redirectOutput(logFile)
-                .command(command.split(" "))
-                .start()
+            .redirectOutput(logFile)
+            .redirectError(logFile)
+            .command(command.split(" "))
+            .start()
 
         GlobalScope.launch {
             delay(200)
@@ -74,53 +74,53 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
     }
 
     private fun RunningAuxProcess.awaitReadiness() {
-
-        if (config.readinessProbeUrl == null) return
-
-        do {
-            logger.info("${config.name} readiness check...")
-
-            if (isReady()) return
-            if (isTimeoutExceeded()) throw RuntimeException("${config.name} readiness timeout exceeded")
-
-            logger.info("${config.name} is not ready. Retrying in ${retryDelay / 1000.0} sec.")
-
-            runBlocking { delay(retryDelay) }
-        } while (true)
+        return
+//        if (config.readinessProbeUrl == null) return
+//
+//        do {
+//            logger.info("${config.name} readiness check...")
+//
+//            if (isReady()) return
+//            if (isTimeoutExceeded()) throw RuntimeException("${config.name} readiness timeout exceeded")
+//
+//            logger.info("${config.name} is not ready. Retrying in ${retryDelay / 1000.0} sec.")
+//
+//            runBlocking { delay(retryDelay) }
+//        } while (true)
     }
 
-    private fun RunningAuxProcess.isReady() = try {
-
-        val request = Request.Builder().url(config.readinessProbeUrl!!).build()
-
-        client.newCall(request).execute().use { it.code() == 200 }
-
-    } catch (e: Exception) {
-        logger.info("Readiness probe failed", e)
-        false
-    }
-
-    private fun RunningAuxProcess.isTimeoutExceeded() = when (config.readinessTimeout) {
-        null -> false
-        else -> Instant.now() < startTime.plusMillis(config.readinessTimeout!!.toLong())
-    }
+//    private fun RunningAuxProcess.isReady() = try {
+//
+//        val request = Request.Builder().url(config.readinessProbeUrl!!).build()
+//
+//        client.newCall(request).execute().use { it.code() == 200 }
+//
+//    } catch (e: Exception) {
+//        logger.info("Readiness probe failed", e)
+//        false
+//    }
+//
+//    private fun RunningAuxProcess.isTimeoutExceeded() = when (config.readinessTimeout) {
+//        null -> false
+//        else -> Instant.now() < startTime.plusMillis(config.readinessTimeout!!.toLong())
+//    }
 
     private fun RunningAuxProcess.stop() {
         if (process.isAlive) process.destroy()
-        logger.info("Process ${config.name} destroyed")
+        logger.info("Process ${config.name} stopped")
     }
 }
 
 data class RunningAuxProcess(
-        val config: AuxConfig,
-        val process: Process,
-        val startTime: Instant = Instant.now()
+    val config: AuxConfig,
+    val process: Process,
+    val startTime: Instant = Instant.now()
 )
 
 open class AuxConfig(
-        val name: String
+    val name: String
 ) {
     lateinit var command: String
-    var readinessProbeUrl: String? = null
-    var readinessTimeout: Int? = null
+//    var readinessProbeUrl: String? = null
+//    var readinessTimeout: Int? = null
 }
