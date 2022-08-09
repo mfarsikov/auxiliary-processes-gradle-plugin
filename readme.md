@@ -1,52 +1,32 @@
-## Deploy 
+Auxiliary processes Gradle plugin
 
-* to maven local: `./gradlew publishToMavenLocal`
-    
-* to bintray: `./gradlew bintrayPublish`
-    
+It helps running auxiliary processes in background, such as mock services for integration tests
+
 ## Usage
+
 ### Setup
 
-```
-buildscript {
-    repositories {
-        maven {
-            url "https://dl.bintray.com/farsikov-max/gradle-auxiliary-processes-plugin"
-        }
-    }
-    dependencies {
-        classpath 'mfarsikov:auxiliary-processes-plugin:0.0.3'
-    }
-}
-
+```kotlin
 plugins {
-...
+    id("io.github.mfarsikov.auxiliary-processes") version "0.1.0"
 }
-
-apply plugin: 'mfarsikov.auxiliary-processes'
 ```
 
-###  Configuration
+### Configuration
 
-```
+```kotlin
 auxProcesses {
-    'long-runner-1' {
-        command = 'java -jar build/libs/runner-app.jar'
-        readinessProbeUrl = 'http://google.com'
-    }
-    'long-runner-2' {
-        command = 'java -jar build/libs/runner-app.jar'
-        readinessProbeUrl = 'http://google.com'
-        readinessTimeout = 1
+    create("mock server") {
+        command = """java -jar myMockServer.jar"""
     }
 }
 
-task('inegrationTest') {
-    dependsOn('startAuxProcesses')
-    doLast{
-        println('testing...')
+task("integrationTest") {
+    dependsOn("startAuxProcesses")
+    doLast {
+        println("testing...")
         Thread.sleep(3000)
     }
-    finalizedBy('stopAuxProcesses')
+    finalizedBy("stopAuxProcesses")
 }
 ```

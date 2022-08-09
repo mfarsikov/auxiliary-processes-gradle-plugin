@@ -1,20 +1,18 @@
 package io.github.mfarsikov.auxiliary.plugin
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.logging.Logger
 import java.io.File
 import java.time.Instant
-import kotlin.RuntimeException
+import java.util.concurrent.TimeUnit
 
 class AuxiliaryProcessesPlugin : Plugin<Project> {
     //private val client = OkHttpClient()
     private var runningAuxProcesses: List<RunningAuxProcess>? = null
     private lateinit var logger: Logger
+
     //private val retryDelay = 1000.toLong()
     override fun apply(project: Project) {
 
@@ -23,14 +21,15 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
         project.extensions.add("auxProcesses", commands)
 
         project.task("startAuxProcesses") {
+
             it.doLast {
 
                 try {
-                    runningAuxProcesses = commands.map { it.run() }.also(::addShutdownHook)
+                    runningAuxProcesses = commands.map { it.start() }
+                        .also { Runtime.getRuntime().addShutdownHook(Thread { it.forEach { it.stop() } }) }
 
                     runningAuxProcesses!!.forEach {
                         it.awaitReadiness()
-                        logger.lifecycle("${it.config.name} is ready")
                     }
 
                 } catch (ex: Exception) {
@@ -42,19 +41,19 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
 
         project.task("stopAuxProcesses") {
             it.doLast {
-                runningAuxProcesses?.forEach { it.stop() }
+                runningAuxProcesses?.forEach {
+                    it.stop()
+                }
             }
         }
     }
 
-    private fun AuxConfig.run(): RunningAuxProcess {
-        logger.info("Starting ${name}")
+    private fun AuxConfig.start(): RunningAuxProcess {
+        logger.debug("Starting aux process ${name}")
 
         File("build/logs").also { if (!it.exists()) it.mkdirs() }
 
         val logFile = File("build/logs/${name}.log").also { if (!it.exists()) it.createNewFile() }
-
-        logger.info("Aux rrocess $name log: ${logFile.absoluteFile}")
 
         val process = ProcessBuilder()
             .redirectOutput(logFile)
@@ -62,15 +61,15 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
             .command(command.split(" "))
             .start()
 
-        GlobalScope.launch {
-            delay(200)
-            if (!process.isAlive) throw RuntimeException("Failed to start ${name}")
+        Thread.sleep(200)
+        if (!process.isAlive) {
+            val msg = "Failed to start aux process $name, see log for details: ${logFile.absolutePath}"
+            logger.error(msg)
+            throw Exception(msg)
         }
-        return RunningAuxProcess(this, process)
-    }
 
-    private fun addShutdownHook(runningAuxProcesses: List<RunningAuxProcess>) {
-        Runtime.getRuntime().addShutdownHook(Thread { runningAuxProcesses.forEach { it.stop() } })
+        logger.lifecycle("Started aux process ${name}, pid:${process.pid()}, log: ${logFile.absolutePath}")
+        return RunningAuxProcess(this, process)
     }
 
     private fun RunningAuxProcess.awaitReadiness() {
@@ -106,15 +105,23 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
 //    }
 
     private fun RunningAuxProcess.stop() {
-        if (process.isAlive) process.destroy()
-        logger.info("Process ${config.name} stopped")
+        if (process.isAlive) {
+            process.descendants().forEach { it.destroy() }
+            process.destroy()
+            process.waitFor(10, TimeUnit.SECONDS)
+            if (process.isAlive) {
+                logger.warn("Cannot stop aux process ${config.name}, pid: ${process.pid()}, try to stop it manually")
+            } else {
+                logger.lifecycle("Aux process ${config.name} stopped")
+            }
+        }
     }
 }
 
 data class RunningAuxProcess(
     val config: AuxConfig,
     val process: Process,
-    val startTime: Instant = Instant.now()
+    val startTime: Instant = Instant.now(),
 )
 
 open class AuxConfig(
