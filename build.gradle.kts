@@ -3,6 +3,7 @@ plugins {
     `maven-publish`
     `java-gradle-plugin`
     id("com.github.mfarsikov.kewt-versioning") version "1.0.0"
+    id ("com.gradle.plugin-publish") version "1.0.0-rc-1"
 }
 
 repositories {
@@ -18,13 +19,22 @@ dependencies {
     testImplementation ("org.jetbrains.kotlin:kotlin-test-junit")
 }
 
-project.group = "com.github.mfarsikov.auxiliary-processes"
+project.group = "io.github.mfarsikov.auxiliary-processes"
 project.version = kewtVersioning.version
 
 gradlePlugin {
     val auxproc by plugins.creating {
-        id = "com.github.mfarsikov.auxiliary-processes"
+        id = "io.github.mfarsikov.auxiliary-processes"
         displayName = "Auxiliary processes"
-        implementationClass = "com.github.mfarsikov.auxiliary.plugin.AuxiliaryProcessesPlugin"
+        implementationClass = "io.github.mfarsikov.auxiliary.plugin.AuxiliaryProcessesPlugin"
     }
 }
+
+pluginBundle {
+    website = "https://github.com/mfarsikov/auxiliary-processes-gradle-plugin"
+    vcsUrl = "https://github.com/mfarsikov/auxiliary-processes-gradle-plugin"
+    description = "Helps to run auxiliary processes in background"
+    tags = listOf("build", "process", "parallel")
+}
+project.ext["gradle.publish.key"] = System.getenv("GRADLE_PUBLISH_KEY")
+project.ext["gradle.publish.secret"] = System.getenv("GRADLE_PUBLISH_SECRET")

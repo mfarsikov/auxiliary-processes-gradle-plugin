@@ -1,4 +1,4 @@
-package com.github.mfarsikov.auxiliary.plugin
+package io.github.mfarsikov.auxiliary.plugin
 
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
