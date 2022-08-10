@@ -7,13 +7,15 @@ import org.gradle.api.logging.Logger
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 class AuxiliaryProcessesPlugin : Plugin<Project> {
-    //private val client = OkHttpClient()
+    private val client = OkHttpClient()
     private var runningAuxProcesses: List<RunningAuxProcess>? = null
     private lateinit var logger: Logger
 
-    //private val retryDelay = 1000.toLong()
+    private val retryDelay = 1000.toLong()
     override fun apply(project: Project) {
 
         logger = project.logger
@@ -69,40 +71,39 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
         }
 
         logger.lifecycle("Started aux process ${name}, pid:${process.pid()}, log: ${logFile.absolutePath}")
-        return RunningAuxProcess(this, process)
+        return RunningAuxProcess(this, process, logFile)
     }
 
     private fun RunningAuxProcess.awaitReadiness() {
-        return
-//        if (config.readinessProbeUrl == null) return
-//
-//        do {
-//            logger.info("${config.name} readiness check...")
-//
-//            if (isReady()) return
-//            if (isTimeoutExceeded()) throw RuntimeException("${config.name} readiness timeout exceeded")
-//
-//            logger.info("${config.name} is not ready. Retrying in ${retryDelay / 1000.0} sec.")
-//
-//            runBlocking { delay(retryDelay) }
-//        } while (true)
+        if (config.readinessProbe == null) return
+
+        do {
+            logger.debug("Aux process ${config.name} readiness check...")
+
+            if (config.readinessProbe!!.invoke(
+                    ReadinessCheckContext(
+                        httpClient = client,
+                        logFile = logFile,
+                        logger = logger,
+                    )
+                )
+            ) {
+                logger.debug("Aux process ${config.name} is ready")
+                return
+            }
+            if (isTimeoutExceeded()) throw RuntimeException("Aux process ${config.name} has exceeded readiness timeout")
+
+            logger.debug("Aux process ${config.name} is not ready. Retrying in ${retryDelay / 1000.0} sec.")
+
+            Thread.sleep(retryDelay)
+        } while (true)
+
     }
 
-//    private fun RunningAuxProcess.isReady() = try {
-//
-//        val request = Request.Builder().url(config.readinessProbeUrl!!).build()
-//
-//        client.newCall(request).execute().use { it.code() == 200 }
-//
-//    } catch (e: Exception) {
-//        logger.info("Readiness probe failed", e)
-//        false
-//    }
-//
-//    private fun RunningAuxProcess.isTimeoutExceeded() = when (config.readinessTimeout) {
-//        null -> false
-//        else -> Instant.now() < startTime.plusMillis(config.readinessTimeout!!.toLong())
-//    }
+    private fun RunningAuxProcess.isTimeoutExceeded() = when (config.readinessTimeout) {
+        null -> false
+        else -> Instant.now() < startTime.plusMillis(config.readinessTimeout!!.toLong())
+    }
 
     private fun RunningAuxProcess.stop() {
         if (process.isAlive) {
@@ -121,6 +122,7 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
 data class RunningAuxProcess(
     val config: AuxConfig,
     val process: Process,
+    val logFile: File,
     val startTime: Instant = Instant.now(),
 )
 
@@ -128,6 +130,32 @@ open class AuxConfig(
     val name: String
 ) {
     lateinit var command: String
-//    var readinessProbeUrl: String? = null
-//    var readinessTimeout: Int? = null
+    var readinessTimeout: Int? = null
+    var readinessProbe: (ReadinessCheckContext.() -> Boolean)? = null
+
+    fun readinessProbe(block: (ReadinessCheckContext.() -> Boolean)) {
+        readinessProbe = block
+    }
+
+    fun isReadinesProbeDefined() = readinessProbe != null
+}
+
+data class ReadinessCheckContext(
+    val httpClient: OkHttpClient,
+    private val logFile: File,
+    private val logger: Logger,
+) {
+    fun successHttpGet(url: String): Boolean {
+        return try {
+            val request = Request.Builder().url(url).build()
+            httpClient.newCall(request).execute().use { it.code == 200 }
+        } catch (e: Exception) {
+            logger.info("Readiness probe failed", e)
+            false
+        }
+    }
+
+    fun logContainsLine(predicate: (String) -> Boolean): Boolean {
+        return logFile.useLines { it.any(predicate) }
+    }
 }
