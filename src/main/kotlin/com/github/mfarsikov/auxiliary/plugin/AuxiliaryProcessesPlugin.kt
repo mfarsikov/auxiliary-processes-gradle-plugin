@@ -27,7 +27,7 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
             it.doLast {
 
                 try {
-                    runningAuxProcesses = commands.map { it.start() }
+                    runningAuxProcesses = commands.map { it.start(project) }
                         .also { Runtime.getRuntime().addShutdownHook(Thread { it.forEach { it.stop() } }) }
 
                     runningAuxProcesses!!.forEach {
@@ -50,12 +50,12 @@ class AuxiliaryProcessesPlugin : Plugin<Project> {
         }
     }
 
-    private fun AuxConfig.start(): RunningAuxProcess {
+    private fun AuxConfig.start(project: Project): RunningAuxProcess {
         logger.debug("Starting aux process ${name}")
 
-        File("build/logs").also { if (!it.exists()) it.mkdirs() }
+        File("${project.layout.buildDirectory}/logs").also { if (!it.exists()) it.mkdirs() }
 
-        val logFile = File("build/logs/${name}.log").also { if (!it.exists()) it.createNewFile() }
+        val logFile = File("${project.layout.buildDirectory}/logs/${name}.log").also { if (!it.exists()) it.createNewFile() }
 
         val process = ProcessBuilder()
             .redirectOutput(logFile)

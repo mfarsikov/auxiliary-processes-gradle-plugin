@@ -8,7 +8,7 @@ It helps running auxiliary processes in background, such as mock services for in
 
 ```kotlin
 plugins {
-    id("io.github.mfarsikov.auxiliary-processes") version "0.2.0"
+    id("io.github.mfarsikov.auxiliary-processes") version "0.3.0"
 }
 ```
 
